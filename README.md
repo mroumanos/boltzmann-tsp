@@ -10,13 +10,14 @@ or, if you want to set the starting temperature, hamiltonian, and bias:
 The Network:
 - A network created and stored within an n x m matrix, where n = # cities and m = # epochs required to travel to them (n + 1)
 - Each network node contained an n x m weight matrix
-    
+ ```   
             epochs
        [ 1 0 0 0 0 1 ]
        [ 0 0 1 0 0 0 ]
 cities [ 0 1 0 0 0 0 ]
        [ 0 0 0 0 1 0 ]
        [ 0 0 0 1 0 0 ]
+```
 Figure 1. A state diagram describing a hamiltonian-complete tour of a traveling saleman over 5 cities
 
 Weight matrix:
@@ -47,4 +48,4 @@ Comments:
  - The convergence time can be reduced drastically if instead of randomnly selected one node and proposing that it change its state, first create a hamiltonian tour randomnly and then during the annealing simulation, propose that two different nodes swap. This way, there is no barrier when breaking out of a high-distance route to a lower distance route. With the old method, you would first have to break out of a high-distance route by breaking the hamiltonian and then reconverging to a lower distance route.
  
 References:
- [1] Aarts E.H.L., Korst J.H.M. (1987) Boltzmann machines and their applications. In: de Bakker J.W., Nijman A.J., Treleaven P.C. (eds) PARLE Parallel Architectures and Languages Europe. PARLE 1987. Lecture Notes in Computer Science, vol 258. Springer, Berlin, Heidelberg
+- [1] Aarts E.H.L., Korst J.H.M. (1987) Boltzmann machines and their applications. In: de Bakker J.W., Nijman A.J., Treleaven P.C. (eds) PARLE Parallel Architectures and Languages Europe. PARLE 1987. Lecture Notes in Computer Science, vol 258. Springer, Berlin, Heidelberg
