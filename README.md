@@ -10,14 +10,14 @@ or, if you want to set the starting temperature, hamiltonian, and bias:
 The Network:
 - A network created and stored within an n x m matrix, where n = # cities and m = # epochs required to travel to them (n + 1)
 - Each network node contained an n x m weight matrix
-```   
+>>>   
     epochs
 [ 1 0 0 0 0 1 ]
 [ 0 0 1 0 0 0 ]
 [ 0 1 0 0 0 0 ] cities
 [ 0 0 0 0 1 0 ]
 [ 0 0 0 1 0 0 ]
-```
+>>>
 Figure 1. A state diagram describing a hamiltonian-complete tour of a traveling saleman over 5 cities
 
 Weight matrix:
