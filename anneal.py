@@ -18,9 +18,9 @@ distances = distances + distances.T
 if __name__ == '__main__':
 
     if len(sys.argv) != 3:
-        T = 500
-        h_charge = 0.1
-        b_charge = -0.15
+        T = 5000
+        h_charge = 0.5
+        b_charge = -0.2
     else:
         T = int(sys.argv[1])
         h_charge = float(sys.argv[2])
@@ -37,4 +37,4 @@ if __name__ == '__main__':
 
     # anneal the network starting at temperature T and a schedule function that
     # decrements T after every cycle
-    machine.anneal(b,T=T,schedule=lambda T: math.log10(T) if T > 10 else 0.1)
+    machine.anneal(b,T=T,schedule=lambda T: math.log10(T) if T > 100 else 0.1)

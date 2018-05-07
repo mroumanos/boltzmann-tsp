@@ -46,27 +46,6 @@ class node():
         """
         self.state = state
         return
-
-    def propose_state(self,dE,T):
-        """Proposes to the node to change state, and the node
-        follows the Metropolis Acceptance Criterion
-        
-        Args:
-            dE (float): change in objective value with the node changing state
-            T (float): current temperature in annealing process
-        
-        Returns:
-            final_state (int): the state chosen from the above criteria
-        """
-        new_state = abs(self.state - 1)
-        final_state = self.state
-        if dE <= 0:
-            final_state = new_state
-        else:
-            prob = (1 / 10 * self.weights.size) * sigmoid(math.exp(dE),T)
-            final_state = new_state if random.random() < prob  else self.state
-            
-        return final_state
     
 class boltzmann():
     """The boltzmann machine object, equipped with the necessary tools 
@@ -115,7 +94,7 @@ class boltzmann():
         # to achieve the property that consensus value declines
         # when shorter paths are chosen AND rises when no path is chosen
         self.distances = distances
-        map_weights = np.vectorize(lambda w: -1 * math.exp(-w) if w != 0 else 0.0)
+        map_weights = np.vectorize(lambda w: -100 * math.exp(-w) if w != 0 else 0.0)
         modified_distances = map_weights(distances)
         
         # iterate through all nodes (city and epoch) and configure
@@ -166,21 +145,23 @@ class boltzmann():
         """
         return get_distance(self.get_states(),self.distances)
     
-    def get_proposed_states(self,city,epoch):
-        """Generates a matrix that represents a new proposed state by flipping
-        the current state of the given city-epoch node
+    def get_proposed_states(self,activate,deactivate):
+        """Generates a matrix that represents a new proposed states by flipping
+        the activated states and the deactivated states
         
         Args:
-            city (int): index of the city to be changed
-            epoch (int): index of the epoch containing city to be changed
+            activate ([int,int]): indices of the nodes to be activated
+            activate ([int,int]): indices of the nodes to be deactivated
             
         Returns:
             proposed_states (np.matrix): new state matrix with flipped node state
         """
-        current_states = self.get_states()
-        new_state = abs(current_states[city,epoch] - 1) # flips the current state to either 0 or 1
-        proposed_states = np.matrix(current_states)
-        proposed_states[city,epoch] = new_state
+        proposed_states = np.matrix(self.get_states())
+        for deactive in deactivate:
+            proposed_states[deactive[0],deactive[1]] = 0
+        for active in activate:
+            proposed_states[active[0],active[1]] = 1
+
         return proposed_states
     
     def get_consensus(self):
@@ -190,16 +171,57 @@ class boltzmann():
         total = np.sum(get_values(self.network))
         return total
     
-    def get_next_node(self):
+    def get_next_nodes(self):
         """Returns the next randomnly-selected node within the current network
         
         Returns:
-            n (int): index of the city chosen
-            t (int): index of the epoch chosen
+            activate (array[int,int]): indices of nodes to turn on
+            deactivate (array[int,int]): indices of nodes to turn off
         """
-        n = random.randint(0,np.size(self.network,0)-1)
-        t = random.randint(0,np.size(self.network,1)-1)
-        return n,t
+        cities,epochs = self.network.shape
+        current_states = self.get_states()
+        
+        # choose the nodes to switch across two epochs
+        t1 = random.randint(0,epochs-1)
+        t2 = random.randint(0,epochs-1)
+        n1 = list(current_states[:,t1].A1).index(1)
+        n2 = list(current_states[:,t2].A1).index(1)
+        
+        # index the swap
+        activate = [[n1,t2],[n2,t1]]
+        deactivate = [[n1,t1],[n2,t2]]
+        
+        # if one is a starting/finishing city, ensure the loop is completed
+        if t1 == 0 or t1 == epochs-1:
+            tf = abs(t1 - (epochs-1))
+            activate.append([n2,tf])
+            deactivate.append([list(current_states[:,tf].A1).index(1),tf])
+        elif t2 == 0 or t2 == epochs-1:
+            tf = abs(t2 - (epochs-1))
+            activate.append([n1,tf])
+            deactivate.append([list(current_states[:,tf].A1).index(1),tf])
+        
+        return activate,deactivate
+    
+    def propose_states(self,dE,T):
+        """Proposes to the node to change state, and the node
+        follows the Metropolis Acceptance Criterion
+        
+        Args:
+            dE (float): change in objective value with the node changing state
+            T (float): current temperature in annealing process
+        
+        Returns:
+            acceptance (bool): whether or not the new states should be accepted
+        """
+        if dE <= 0:
+            return True
+        else:
+            prob = (1/self.network.size) * math.log10(T) * sigmoid(math.exp(dE),T)
+            if random.random() < prob:
+                return True
+            else:
+                return False
     
     def print_states(self):
         """Prints out the current state matrix in readable format
@@ -341,40 +363,52 @@ def anneal(machine,T=500,schedule=lambda T: math.log10(T) if T > 10 else 0.1):
     min_dist = np.inf
     min_conf = None
 
+    # first, create a hamiltonian tour
+    cities,epochs = machine.get_states().shape
+    cities_left = [ i for i in range(cities) ]
+    first_city = 0
+    for i in range(cities): # place the cities in random order across epochs
+        selected = random.randint(0,len(cities_left)-1)
+        machine.network[cities_left[selected],i].set_state(1)
+        if i == 0: first_city = selected
+        del cities_left[selected]
+    machine.network[first_city,cities].set_state(1) # add the first city added to end of the list
     print('-- annealing %s --' % machine)
     
     # the temperature schedule starts here
     while T > stop_T:
         print('iterating, current T=%s...' % T)
-        complete = False
         
-        # while it has not converged to a hamiltonian tour at the
-        # current temperature...
-        while not complete:
-            
-            # randomnly select a node and generate a new proposed state
-            selected_city,selected_epoch = machine.get_next_node()
-            current_states = machine.get_states()
-            proposed_states = machine.get_proposed_states(selected_city,selected_epoch)
+        # randomnly select a node and generate a new proposed state
+        activate,deactivate = machine.get_next_nodes()
+#             print('activate: %s' % activate)
+#             print('deactivate: %s' % deactivate)
+        current_states = machine.get_states()
+        proposed_states = machine.get_proposed_states(activate,deactivate)
+#             print('current states:\n%s' % current_states)
+#             print('proposed_states:\n%s' % proposed_states)
 
-            # compute the energy of the current and proposed state and take their difference
-            E1 = consensus(current_states,machine.network)
-            E2 = consensus(proposed_states,machine.network)
-            dE = E2 - E1
+        # compute the energy of the current and proposed state and take their difference
+        E1 = consensus(current_states,machine.network)
+        E2 = consensus(proposed_states,machine.network)
+        dE = E2 - E1
 
-            current_state = machine.network[selected_city,selected_epoch].get_state()
-            new_state = machine.network[selected_city,selected_epoch].propose_state(dE,T)
+        # check if the new states meet the metropolis criterion
+        if machine.propose_states(dE,T):
+            # since they do, change the configuration to the proposed state
+            for n in range(cities):
+                for t in range(epochs):
+                    if proposed_states[n,t] == 1:
+                        machine.network[n,t].set_state(1)
+                    else:
+                        machine.network[n,t].set_state(0)
 
-            if current_state != new_state:
-                machine.network[selected_city,selected_epoch].set_state(new_state)
-            
-            final_states = machine.get_states()
-            if hamiltonian(final_states):
-                final_dist = get_distance(final_states,machine.distances)
-                complete = True
-                if final_dist < min_dist:
-                    min_dist = final_dist
-                    min_conf = machine.get_states()
+        final_states = machine.get_states()
+    
+        final_dist = get_distance(final_states,machine.distances)
+        if final_dist < min_dist:
+            min_dist = final_dist
+            min_conf = machine.get_states()
         
         print(machine.print_tour())
         print('distance=%s' % machine.get_distance())
