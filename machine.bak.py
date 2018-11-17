@@ -377,7 +377,7 @@ def anneal(machine,T=500,schedule=lambda T: math.log10(T) if T > 10 else 0.1):
     
     # the temperature schedule starts here
     while T > stop_T:
-        # print('iterating, current T=%s...' % T)
+        print('iterating, current T=%s...' % T)
         
         # randomnly select a node and generate a new proposed state
         activate,deactivate = machine.get_next_nodes()
@@ -410,17 +410,16 @@ def anneal(machine,T=500,schedule=lambda T: math.log10(T) if T > 10 else 0.1):
             min_dist = final_dist
             min_conf = machine.get_states()
         
-        yield [ str(T), machine.print_tour(), str(machine.get_distance()) ]
-        # print(machine.print_tour())
-        # print('distance=%s' % machine.get_distance())
+        print(machine.print_tour())
+        print('distance=%s' % machine.get_distance())
 
         T -= schedule(T)
     
-    # print('-- annealing complete --')
-    # print('final T: %s' % T)
-    # print('minimum:')
-    # print('\ttour = %s' % print_tour(min_conf,machine.node_map))
-    # print('\tdistance = %s' % min_dist)
-    # print('final:')
-    # print('\ttour = %s' % machine.print_tour())
-    # print('\tdistance = %s' % machine.get_distance())
+    print('-- annealing complete --')
+    print('final T: %s' % T)
+    print('minimum:')
+    print('\ttour = %s' % print_tour(min_conf,machine.node_map))
+    print('\tdistance = %s' % min_dist)
+    print('final:')
+    print('\ttour = %s' % machine.print_tour())
+    print('\tdistance = %s' % machine.get_distance())
